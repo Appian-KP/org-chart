@@ -2,6 +2,7 @@
   "name": "d3-org-chart",
   "version": "3.1.1",
   "module": "index",
+  "type": "module",
   "description": "Highly customizable org chart, created with d3",
   "keywords": [
     "d3",
@@ -37,12 +38,14 @@
     "pretest": "rm -rf build && mkdir build && rollup -g d3-selection:d3,d3-array:d3,d3-hierarchy:d3,d3-zoom:d3,d3-flextree:d3,d3-shape:d3,d3-group:d3  -f umd -n d3 -o build/d3-org-chart.js -- index.js",
     "test": "tape 'test/**/*-test.js'",
     "prepublish": "npm run test && uglifyjs build/d3-org-chart.js -c -m -o build/d3-org-chart.min.js",
-    "postpublish": "zip -j build/d3-org-chart.zip -- LICENSE README.md build/d3-org-chart.js build/d3-org-chart.min.js"
+    "postpublish": "zip -j build/d3-org-chart.zip -- LICENSE README.md build/d3-org-chart.js build/d3-org-chart.min.js",
+    "dev": "node reload-after-build.js"
   },
   "devDependencies": {
     "@babel/core": "^7.7.7",
     "@babel/preset-env": "^7.7.7",
     "babel": "^6.23.0",
+    "browser-sync": "^3.0.3",
     "package-preamble": "0.1",
     "rollup": "0.27",
     "tape": "4",
