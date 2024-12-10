@@ -51,8 +51,10 @@ export class OrgChart {
             rootMargin: 40, // Configure how much root node is offset from top
             nodeWidth: d3Node => 250, // Configure each node width, use with caution, it is better to have the same value set for all nodes
             nodeHeight: d => 150,  //  Configure each node height, use with caution, it is better to have the same value set for all nodes
-            neighbourMargin: (n1, n2) => 80, // Configure margin between two nodes, use with caution, it is better to have the same value set for all nodes
-            siblingsMargin: d3Node => 20, // Configure margin between two siblings, use with caution, it is better to have the same value set for all nodes
+            // neighbourMargin: (n1, n2) => 80, // Configure margin between two nodes, use with caution, it is better to have the same value set for all nodes
+            neighbourMargin: (n1, n2) => 0, // Configure margin between two nodes, use with caution, it is better to have the same value set for all nodes
+            // siblingsMargin: d3Node => 20, // Configure margin between two siblings, use with caution, it is better to have the same value set for all nodes
+            siblingsMargin: d3Node => 40, // Configure margin between two siblings, use with caution, it is better to have the same value set for all nodes
             childrenMargin: d => 60, // Configure margin between parent and children, use with caution, it is better to have the same value set for all nodes
             compactMarginPair: d => 100, // Configure margin between two nodes in compact mode, use with caution, it is better to have the same value set for all nodes
             compactMarginBetween: (d3Node => 20), // Configure margin between two nodes in compact mode, use with caution, it is better to have the same value set for all nodes
@@ -754,36 +756,53 @@ export class OrgChart {
         })
         return Object.entries(grouped);
     }
+
     calculateCompactFlexDimensions(root) {
         const attrs = this.getChartState();
         root.eachBefore(node => {
+            if (node.depth < 3) {
+                return;
+            }
+
             node.firstCompact = null;
             node.compactEven = null;
             node.flexCompactDim = null;
             node.firstCompactNode = null;
         })
         root.eachBefore(node => {
+            if (node.depth < 3) {
+                return;
+            }
+
             if (node.children && node.children.length > 1) {
-                const compactChildren = node.children
-                    .filter(d => !d.children)
+                const compactChildren = node.children.filter(d => !d.children)
 
                 if (compactChildren.length < 2) return;
+                // if (compactChildren.length < 1) return;
+
                 compactChildren.forEach((child, i) => {
                     if (!i) child.firstCompact = true;
-                    if (i % 2) child.compactEven = false;
-                    else child.compactEven = true;
-                    child.row = Math.floor(i / 2);
+                    // if (i % 2) child.compactEven = false;
+                    // else child.compactEven = true;
+                    // child.row = Math.floor(i / 2);
+                    child.compactEven = false;
+                    child.row = i;
                 })
-                const evenMaxColumnDimension = d3.max(compactChildren.filter(d => d.compactEven), attrs.layoutBindings[attrs.layout].compactDimension.sizeColumn);
+                // const evenMaxColumnDimension = d3.max(compactChildren.filter(d => d.compactEven), attrs.layoutBindings[attrs.layout].compactDimension.sizeColumn);
                 const oddMaxColumnDimension = d3.max(compactChildren.filter(d => !d.compactEven), attrs.layoutBindings[attrs.layout].compactDimension.sizeColumn);
-                const columnSize = Math.max(evenMaxColumnDimension, oddMaxColumnDimension) * 2;
-                const rowsMapNew = this.groupBy(compactChildren, d => d.row, reducedGroup => d3.max(reducedGroup, d => attrs.layoutBindings[attrs.layout].compactDimension.sizeRow(d) + attrs.compactMarginBetween(d)));
+                // const columnSize = Math.max(evenMaxColumnDimension, oddMaxColumnDimension) * 2;
+                const columnSize = oddMaxColumnDimension + attrs.compactMarginPair(node)/2;
+                const rowsMapNew = this.groupBy(
+                    compactChildren,
+                    d => d.row,
+                    reducedGroup => d3.max(reducedGroup, d => attrs.layoutBindings[attrs.layout].compactDimension.sizeRow(d) + attrs.compactMarginBetween(d))
+                );
                 const rowSize = d3.sum(rowsMapNew.map(v => v[1]))
                 compactChildren.forEach(node => {
                     node.firstCompactNode = compactChildren[0];
                     if (node.firstCompact) {
                         node.flexCompactDim = [
-                            columnSize + attrs.compactMarginPair(node),
+                            columnSize + attrs.compactMarginPair(node)/4,
                             rowSize - attrs.compactMarginBetween(node)
                         ];
                     } else {
@@ -798,14 +817,22 @@ export class OrgChart {
     calculateCompactFlexPositions(root) {
         const attrs = this.getChartState();
         root.eachBefore(node => {
+            if (node.depth < 3) {
+                return;
+            }
+
             if (node.children) {
                 const compactChildren = node.children.filter(d => d.flexCompactDim);
                 const fch = compactChildren[0];
                 if (!fch) return;
+
                 compactChildren.forEach((child, i, arr) => {
-                    if (i == 0) fch.x -= fch.flexCompactDim[0] / 2;
-                    if (i & i % 2 - 1) child.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(child) / 4;
-                    else if (i) child.x = fch.x + fch.flexCompactDim[0] * 0.75 + attrs.compactMarginPair(child) / 4;
+                    // if (i == 0) fch.x -= fch.flexCompactDim[0] / 2;
+                    // if (i & i % 2 - 1) child.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(child) / 4;
+                    // else if (i) child.x = fch.x + fch.flexCompactDim[0] * 0.75 + attrs.compactMarginPair(child) / 4;
+
+                    if (i == 0) fch.x -= fch.flexCompactDim[0] / 3;
+                    child.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(child) / 4;
                 })
                 const centerX = fch.x + fch.flexCompactDim[0] * 0.5;
                 fch.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(fch) / 4;
@@ -924,9 +951,12 @@ export class OrgChart {
             .transition()
             .duration(attrs.duration)
             .attr("d", (d) => {
+                const lateralOffset = d.width + attrs.compactMarginPair(d)/8;
+                const verticalParentOffset = d.parent.height - attrs.compactMarginBetween(d)*1.5;
+
                 const n = attrs.compact && d.flexCompactDim ?
                     {
-                        x: attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs),
+                        x: attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) - lateralOffset,
                         y: attrs.layoutBindings[attrs.layout].compactLinkMidY(d, attrs)
                     } :
                     {
@@ -934,17 +964,22 @@ export class OrgChart {
                         y: attrs.layoutBindings[attrs.layout].linkY(d)
                     };
 
-                const p = {
-                    x: attrs.layoutBindings[attrs.layout].linkParentX(d),
-                    y: attrs.layoutBindings[attrs.layout].linkParentY(d),
-                };
+                const p = attrs.compact && d.flexCompactDim ?
+                    {
+                        x: attrs.layoutBindings[attrs.layout].linkParentX(d),
+                        y: attrs.layoutBindings[attrs.layout].linkParentY(d) - verticalParentOffset,
+                    } : 
+                    {
+                        x: attrs.layoutBindings[attrs.layout].linkParentX(d),
+                        y: attrs.layoutBindings[attrs.layout].linkParentY(d),
+                    };
 
                 const m = attrs.compact && d.flexCompactDim ? {
                     x: attrs.layoutBindings[attrs.layout].linkCompactXStart(d),
                     y: attrs.layoutBindings[attrs.layout].linkCompactYStart(d),
                 } : n;
                 return attrs.layoutBindings[attrs.layout].diagonal(n, p, m, { sy: attrs.linkYOffset });
-            });
+            })
 
         // Remove any  links which is exiting after animation
         const linkExit = linkSelection
