@@ -41,7 +41,8 @@ export class OrgChart {
             /*  INTENDED FOR PUBLIC OVERRIDE */
 
             svgWidth: 800,   // Configure svg width
-            svgHeight: window.innerHeight - 100,  // Configure svg height
+            // svgHeight: window.innerHeight - 100,  // Configure svg height
+            svgHeight: 750,  // Configure svg height
             container: "body",  // Set parent container, either CSS style selector or DOM element
             data: null, // Set data, it must be an array of objects, where hierarchy is clearly defined via id and parent ID (property names are configurable)
             connections: [], // Sets connection data, array of objects, SAMPLE:  [{from:"145",to:"201",label:"Conflicts of interest"}]
