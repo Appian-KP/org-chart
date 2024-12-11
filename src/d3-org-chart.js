@@ -596,6 +596,9 @@ export class OrgChart {
 
         this.setLayouts({ expandNodesFirst: false });
 
+        //****************** set max depth ************************
+        attrs.maxDepth = this.getMaxDepth(attrs.root.children);
+
         // *************************  DRAWING **************************
         //Add svg
         const svg = container
@@ -684,6 +687,31 @@ export class OrgChart {
         return this;
     }
 
+    getMaxDepth(children) {
+        let maxDepth = 0;
+        children.forEach(child => {
+            if (child.depth > maxDepth) {
+                maxDepth = child.depth;
+            }
+
+            if ((child.children && child.children.length) || (child._children && child._children.length)) {
+                let childrenDepth = 0;
+                let _childrenDepth = 0;
+                if (child.children) {
+                    childrenDepth = this.getMaxDepth(child.children);
+                }
+                if (child._children) {
+                    _childrenDepth = this.getMaxDepth(child._children);
+                }
+                let innerDepth = Math.max(childrenDepth, _childrenDepth);
+                if (innerDepth > maxDepth) {
+                    maxDepth = innerDepth;
+                }
+            }
+        });
+        return maxDepth;
+    }
+
     // This function can be invoked via chart.addNode API, and it adds node in tree at runtime
     addNode(obj) {
         const attrs = this.getChartState();
@@ -760,8 +788,11 @@ export class OrgChart {
 
     calculateCompactFlexDimensions(root) {
         const attrs = this.getChartState();
+
+        const depthForCompactMode = attrs.maxDepth > 3 ? 3 : 2;
+
         root.eachBefore(node => {
-            if (node.depth < 3) {
+            if (node.depth < depthForCompactMode) {
                 return;
             }
 
@@ -769,17 +800,18 @@ export class OrgChart {
             node.compactEven = null;
             node.flexCompactDim = null;
             node.firstCompactNode = null;
-        })
+        });
+
         root.eachBefore(node => {
-            if (node.depth < 3) {
+            if (node.depth < depthForCompactMode) {
                 return;
             }
 
             if (node.children && node.children.length > 1) {
-                const compactChildren = node.children.filter(d => !d.children)
+                // const compactChildren = node.children.filter(d => !d.children)
+                const compactChildren = node.children;
 
                 if (compactChildren.length < 2) return;
-                // if (compactChildren.length < 1) return;
 
                 compactChildren.forEach((child, i) => {
                     if (!i) child.firstCompact = true;
@@ -810,15 +842,18 @@ export class OrgChart {
                         node.flexCompactDim = [0, 0];
                     }
                 })
-                node.flexCompactDim = null;
+                // node.flexCompactDim = null;
             }
         })
     }
 
     calculateCompactFlexPositions(root) {
         const attrs = this.getChartState();
+
+        const depthForCompactMode = attrs.maxDepth > 3 ? 3 : 2;
+
         root.eachBefore(node => {
-            if (node.depth < 3) {
+            if (node.depth < depthForCompactMode) {
                 return;
             }
 
@@ -832,11 +867,10 @@ export class OrgChart {
                     // if (i & i % 2 - 1) child.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(child) / 4;
                     // else if (i) child.x = fch.x + fch.flexCompactDim[0] * 0.75 + attrs.compactMarginPair(child) / 4;
 
-                    if (i == 0) fch.x -= fch.flexCompactDim[0] / 3;
-                    child.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(child) / 4;
+                    child.x = fch.parent.x;
                 })
                 const centerX = fch.x + fch.flexCompactDim[0] * 0.5;
-                fch.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(fch) / 4;
+                // fch.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(fch) / 4;
                 const offsetX = node.x - centerX;
                 if (Math.abs(offsetX) < 10) {
                     compactChildren.forEach(d => d.x += offsetX);
@@ -844,15 +878,25 @@ export class OrgChart {
 
                 const rowsMapNew = this.groupBy(compactChildren, d => d.row, reducedGroup => d3.max(reducedGroup, d => attrs.layoutBindings[attrs.layout].compactDimension.sizeRow(d)));
                 const cumSum = d3.cumsum(rowsMapNew.map(d => d[1] + attrs.compactMarginBetween(d)));
-                compactChildren
-                    .forEach((node, i) => {
-                        if (node.row) {
-                            node.y = fch.y + cumSum[node.row - 1]
-                        } else {
-                            node.y = fch.y;
-                        }
-                    })
+                fch.y = fch.parent.y + fch.parent.height + attrs.childrenMargin(node);
+                compactChildren.forEach((node, i) => {
+                    if (node.row) {
+                        node.y = fch.y + cumSum[node.row - 1]
+                    } else {
+                        node.y = fch.y;
+                    }
+                });
 
+                // adjust siblings when expanding a deeper level
+                if (node.depth > depthForCompactMode) {
+                    const nodeIndex = node.parent.children.findIndex(child => child.id === node.id);
+
+                    node.parent.children.forEach((sibling, i) => {
+                        if (i > nodeIndex) {
+                            sibling.y += cumSum[cumSum.length - 1] + attrs.childrenMargin(node);
+                        }
+                    });
+                }
             }
         })
     }
@@ -952,33 +996,45 @@ export class OrgChart {
             .transition()
             .duration(attrs.duration)
             .attr("d", (d) => {
-                const lateralOffset = d.width + attrs.compactMarginPair(d)/8;
-                const verticalParentOffset = d.parent.height - attrs.compactMarginBetween(d)*1.5;
+                let n, p, m;
 
-                const n = attrs.compact && d.flexCompactDim ?
-                    {
+                if (attrs.compact && d.flexCompactDim) {
+                    const lateralOffset = d.width + attrs.compactMarginPair(d)/8;
+                    const verticalParentOffset = d.parent.height - attrs.compactMarginBetween(d)*1.5;
+    
+                    n = {
                         x: attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) - lateralOffset,
                         y: attrs.layoutBindings[attrs.layout].compactLinkMidY(d, attrs)
-                    } :
-                    {
+                    };
+    
+                    p = {
+                        x: attrs.layoutBindings[attrs.layout].linkParentX(d),
+                        y: attrs.layoutBindings[attrs.layout].linkParentY(d) - verticalParentOffset,
+                    };
+    
+                    m = {
+                        x: attrs.layoutBindings[attrs.layout].linkCompactXStart(d),
+                        y: attrs.layoutBindings[attrs.layout].linkCompactYStart(d),
+                    };
+
+                    if (d.depth === 5) {
+                        n.x = attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) + attrs.compactMarginPair(d)/2;
+                        m.x += d.width;
+                    }
+                } else {
+                    n = {
                         x: attrs.layoutBindings[attrs.layout].linkX(d),
                         y: attrs.layoutBindings[attrs.layout].linkY(d)
                     };
-
-                const p = attrs.compact && d.flexCompactDim ?
-                    {
-                        x: attrs.layoutBindings[attrs.layout].linkParentX(d),
-                        y: attrs.layoutBindings[attrs.layout].linkParentY(d) - verticalParentOffset,
-                    } : 
-                    {
+    
+                    p = {
                         x: attrs.layoutBindings[attrs.layout].linkParentX(d),
                         y: attrs.layoutBindings[attrs.layout].linkParentY(d),
                     };
+    
+                    m = n;
+                }
 
-                const m = attrs.compact && d.flexCompactDim ? {
-                    x: attrs.layoutBindings[attrs.layout].linkCompactXStart(d),
-                    y: attrs.layoutBindings[attrs.layout].linkCompactYStart(d),
-                } : n;
                 return attrs.layoutBindings[attrs.layout].diagonal(n, p, m, { sy: attrs.linkYOffset });
             })
 
