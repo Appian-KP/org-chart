@@ -807,11 +807,13 @@ export class OrgChart {
                 return;
             }
 
-            if (node.children && node.children.length > 1) {
+            // if (node.children && node.children.length > 1) {
+            if (node.children && node.children.length) {
                 // const compactChildren = node.children.filter(d => !d.children)
                 const compactChildren = node.children;
 
-                if (compactChildren.length < 2) return;
+                // if (compactChildren.length < 2) return;
+                if (compactChildren.length < 1) return;
 
                 compactChildren.forEach((child, i) => {
                     if (!i) child.firstCompact = true;
