@@ -836,10 +836,17 @@ export class OrgChart {
                 compactChildren.forEach(node => {
                     node.firstCompactNode = compactChildren[0];
                     if (node.firstCompact) {
-                        node.flexCompactDim = [
-                            columnSize + attrs.compactMarginPair(node)/4,
-                            rowSize - attrs.compactMarginBetween(node)
-                        ];
+                        if (node.depth < depthForCompactMode+2) {
+                            node.flexCompactDim = [
+                                columnSize + attrs.compactMarginPair(node)/4,
+                                rowSize - attrs.compactMarginBetween(node) // useless
+                            ];
+                        } else {
+                            node.flexCompactDim = [
+                                attrs.compactMarginPair(node)/3,
+                                attrs.compactMarginBetween(node) // useless
+                            ];
+                        }
                     } else {
                         node.flexCompactDim = [0, 0];
                     }
@@ -1020,7 +1027,7 @@ export class OrgChart {
                     };
 
                     if (d.depth === 5) {
-                        n.x = attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) + attrs.compactMarginPair(d)/2;
+                        n.x = attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) + attrs.compactMarginPair(d)*1.3;
                         m.x += d.width;
                     }
                 } else {
