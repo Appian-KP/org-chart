@@ -688,6 +688,10 @@ export class OrgChart {
     }
 
     getMaxDepth(children) {
+        if (!children) {
+            return 0;
+        }
+
         let maxDepth = 0;
         children.forEach(child => {
             if (child.depth > maxDepth) {
