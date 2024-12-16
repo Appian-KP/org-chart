@@ -545,7 +545,7 @@ export class OrgChart {
         let depth;
         children.forEach((child, index) => {
             if (child.data.livello === levelToExpand) {
-                depth = child.depth;
+                depth = Math.max(child.depth, child.data.livello);
             }
 
             if (index === children.length-1 && !depth) {
