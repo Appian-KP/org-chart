@@ -525,6 +525,43 @@ export class OrgChart {
         return this;
     }
 
+    setInitialExpandedDepth(levelToExpand) {
+        const attrs = this.getChartState();
+        let depth;
+        if (attrs.root.children) {
+            depth = this.getDepthFromLevel(attrs.root.children, levelToExpand);
+        }
+        if (attrs.root._children) {
+            depth = this.getDepthFromLevel(attrs.root._children, levelToExpand);
+        }
+
+        attrs.initialExpandLevel = depth;
+        this.update(attrs.root);
+        
+        return this;
+    }
+
+    getDepthFromLevel(children, levelToExpand) {
+        let depth;
+        children.forEach((child, index) => {
+            if (child.data.livello === levelToExpand) {
+                depth = child.depth;
+            }
+
+            if (index === children.length-1 && !depth) {
+                if (child.children) {
+                    depth = this.getDepthFromLevel(child.children, levelToExpand);
+                } else if (child._children) {
+                    depth = this.getDepthFromLevel(child._children, levelToExpand);
+                } else {
+                    depth = 1;
+                }
+            }
+        });
+
+        return depth;
+    }
+
     render() {
         //InnerFunctions which will update visuals
         const attrs = this.getChartState();
