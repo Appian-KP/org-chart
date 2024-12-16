@@ -596,8 +596,12 @@ export class OrgChart {
 
         this.setLayouts({ expandNodesFirst: false });
 
-        //****************** set max depth ************************
+        // ****************** set max depth ************************
         attrs.maxDepth = this.getMaxDepth(attrs.root.children);
+
+        // ****************** expand fake nodes ************************
+
+        this.expandFakeNodes([attrs.root]);
 
         // *************************  DRAWING **************************
         //Add svg
@@ -714,6 +718,30 @@ export class OrgChart {
             }
         });
         return maxDepth;
+    }
+
+    expandFakeNodes(children) {
+        if (!children) {
+            return 0;
+        }
+
+        children.forEach(child => {
+            if (child.data.isHiddenNode) {
+                // Expand children
+                if (child._children) {
+                    child.children = child._children;
+                    child._children = null;
+                    // child.children.forEach(({ data }) => (data._expanded = true));
+                }
+            }
+
+            if (child.children && child.children.length) {
+                this.expandFakeNodes(child.children)
+            }
+            if (child._children && child._children.length) {
+                this.expandFakeNodes(child._children)
+            }
+        });
     }
 
     // This function can be invoked via chart.addNode API, and it adds node in tree at runtime
@@ -869,7 +897,7 @@ export class OrgChart {
             if (node.depth < depthForCompactMode) {
                 return;
             }
-
+            
             if (node.children) {
                 const compactChildren = node.children.filter(d => d.flexCompactDim);
                 const fch = compactChildren[0];
@@ -1011,13 +1039,13 @@ export class OrgChart {
             .attr("d", (d) => {
                 let n, p, m;
 
-                if (attrs.compact && d.flexCompactDim) {
+                if (attrs.compact && d.flexCompactDim && d.parent.children.length > 1) {
                     const lateralOffset = d.width + attrs.compactMarginPair(d)/8;
                     const verticalParentOffset = d.parent.height - attrs.compactMarginBetween(d)*1.5;
     
                     n = {
                         x: attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) - lateralOffset,
-                        y: attrs.layoutBindings[attrs.layout].compactLinkMidY(d, attrs)
+                        y: attrs.layoutBindings[attrs.layout].compactLinkMidY(d, attrs) - 25
                     };
     
                     p = {
@@ -1035,6 +1063,7 @@ export class OrgChart {
                         m.x += d.width;
                     }
                 } else {
+                    const verticalOffsetForStartingPoint = d.parent.data.isHiddenNode ? (d.parent.height - attrs.linkYOffset) : 0
                     n = {
                         x: attrs.layoutBindings[attrs.layout].linkX(d),
                         y: attrs.layoutBindings[attrs.layout].linkY(d)
@@ -1042,10 +1071,13 @@ export class OrgChart {
     
                     p = {
                         x: attrs.layoutBindings[attrs.layout].linkParentX(d),
-                        y: attrs.layoutBindings[attrs.layout].linkParentY(d),
+                        y: attrs.layoutBindings[attrs.layout].linkParentY(d) - verticalOffsetForStartingPoint
                     };
     
-                    m = n;
+                    m = {
+                        x: attrs.layoutBindings[attrs.layout].linkX(d),
+                        y: attrs.layoutBindings[attrs.layout].linkY(d)
+                    };
                 }
 
                 return attrs.layoutBindings[attrs.layout].diagonal(n, p, m, { sy: attrs.linkYOffset });
@@ -1131,6 +1163,7 @@ export class OrgChart {
                 return `translate(${xj},${yj})`
             })
             .attr("cursor", "pointer")
+            .style('visibility', d => d.data.isHiddenNode ? 'hidden' : '')
             .on("click.node", (event, node) => {
                 const { data } = node;
                 if ([...event.srcElement.classList].includes("node-button-foreign-object")) {
@@ -1201,6 +1234,7 @@ export class OrgChart {
                 selector: "node-button-g",
                 data: (d) => [d]
             })
+            .style('display', d => d.data.isHiddenNode ? 'none' : '')
             .on("click", (event, d) => this.onButtonClick(event, d))
             .on("keydown", (event, d) => {
                 if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
@@ -1251,7 +1285,6 @@ export class OrgChart {
             .duration(attrs.duration)
             .attr("transform", ({ x, y, width, height }) => {
                 return attrs.layoutBindings[attrs.layout].nodeUpdateTransform({ x, y, width, height });
-
             })
             .attr("opacity", 1);
 
@@ -1902,7 +1935,7 @@ export class OrgChart {
     collapseAll() {
         const { allNodes, root } = this.getChartState();
         allNodes.forEach(d => d.data._expanded = false);
-        this.initialExpandLevel(0)
+        // this.initialExpandLevel(0)
         this.render();
         return this;
     }
