@@ -855,6 +855,29 @@ export class OrgChart {
         return Object.entries(grouped);
     }
 
+    getNodesByLevel(children, level) {
+        if (!children) {
+            return 0;
+        }
+
+        let foundNodes = [];
+
+        children.forEach(child => {
+            if (child.data.livello === level) {
+                foundNodes.push(child);
+            }
+
+            if (child.children && child.children.length) {
+                foundNodes = foundNodes.concat(this.getNodesByLevel(child.children, level));
+            }
+            if (child._children && child._children.length) {
+                foundNodes = foundNodes.concat(this.getNodesByLevel(child._children, level));
+            }
+        });
+
+        return foundNodes;
+    }
+
     calculateCompactFlexDimensions(root) {
         const attrs = this.getChartState();
 
@@ -884,18 +907,50 @@ export class OrgChart {
                 // if (compactChildren.length < 2) return;
                 if (compactChildren.length < 1) return;
 
-                compactChildren.forEach((child, i) => {
-                    if (!i) child.firstCompact = true;
-                    // if (i % 2) child.compactEven = false;
-                    // else child.compactEven = true;
-                    // child.row = Math.floor(i / 2);
-                    child.compactEven = false;
-                    child.row = i;
-                })
+                let columnSize = node.width + attrs.compactMarginPair(node)/2;
+
+                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.data.livello)
+                    .filter(node => !node.data.isHiddenNode)
+                    .filter(node => node.children || node._children)
+                    .length;
+
+                const showMultipleColumns = compactChildren.length > 6 && nodesWithSameLevel < 3;
+
+                if (showMultipleColumns) {
+                    let pushLeft = true;
+
+                    compactChildren.forEach((child, i) => {
+                        if (!i) child.firstCompact = true;
+
+                        if (pushLeft) {
+                            child.compactEven = false;
+                        } else {
+                            child.compactEven = true;
+                        }
+
+                        if (i % 2) {
+                            pushLeft = !pushLeft;
+                        }
+
+                        child.row = Math.floor(i / 4);
+                    });
+
+                    columnSize *= 4;
+                } else {
+                    compactChildren.forEach((child, i) => {
+                        if (!i) child.firstCompact = true;
+                        // if (i % 2) child.compactEven = false;
+                        // else child.compactEven = true;
+                        // child.row = Math.floor(i / 2);
+                        child.compactEven = false;
+                        child.row = i;
+                    })
+                }
+                
                 // const evenMaxColumnDimension = d3.max(compactChildren.filter(d => d.compactEven), attrs.layoutBindings[attrs.layout].compactDimension.sizeColumn);
-                const oddMaxColumnDimension = d3.max(compactChildren.filter(d => !d.compactEven), attrs.layoutBindings[attrs.layout].compactDimension.sizeColumn);
+                // const oddMaxColumnDimension = d3.max(compactChildren.filter(d => !d.compactEven), attrs.layoutBindings[attrs.layout].compactDimension.sizeColumn);
                 // const columnSize = Math.max(evenMaxColumnDimension, oddMaxColumnDimension) * 2;
-                const columnSize = oddMaxColumnDimension + attrs.compactMarginPair(node)/2;
+                
                 const rowsMapNew = this.groupBy(
                     compactChildren,
                     d => d.row,
@@ -907,12 +962,12 @@ export class OrgChart {
                     if (node.firstCompact) {
                         if (node.depth < depthForCompactMode+2) {
                             node.flexCompactDim = [
-                                columnSize + attrs.compactMarginPair(node)/4,
+                                columnSize + attrs.compactMarginPair(node) / 4,
                                 rowSize - attrs.compactMarginBetween(node) // useless
                             ];
                         } else {
                             node.flexCompactDim = [
-                                attrs.compactMarginPair(node)/3,
+                                attrs.compactMarginPair(node) / 3,
                                 attrs.compactMarginBetween(node) // useless
                             ];
                         }
@@ -940,13 +995,35 @@ export class OrgChart {
                 const fch = compactChildren[0];
                 if (!fch) return;
 
-                compactChildren.forEach((child, i, arr) => {
-                    // if (i == 0) fch.x -= fch.flexCompactDim[0] / 2;
-                    // if (i & i % 2 - 1) child.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(child) / 4;
-                    // else if (i) child.x = fch.x + fch.flexCompactDim[0] * 0.75 + attrs.compactMarginPair(child) / 4;
+                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.data.livello)
+                    .filter(node => !node.data.isHiddenNode)
+                    .filter(node => node.children || node._children)
+                    .length;
 
-                    child.x = fch.parent.x;
-                })
+                const showMultipleColumns = compactChildren.length > 6 && nodesWithSameLevel < 3;
+
+                if (showMultipleColumns) {
+                    compactChildren.forEach((child, i, arr) => {
+                        if (i % 4 === 0) {
+                            child.x = child.parent.x - child.width*1.5 - attrs.compactMarginPair(child)*0.75;
+                        } else {
+                            child.x = fch.x + (child.width + attrs.compactMarginPair(child)/2) * (i % 4);
+                        }
+
+                        if (i === compactChildren.length-1 && i%4 === 0) {
+                            child.x += child.width + attrs.compactMarginPair(child)/2;
+                        }
+                    })
+                } else {
+                    compactChildren.forEach((child, i, arr) => {
+                        // if (i == 0) fch.x -= fch.flexCompactDim[0] / 2;
+                        // if (i & i % 2 - 1) child.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(child) / 4;
+                        // else if (i) child.x = fch.x + fch.flexCompactDim[0] * 0.75 + attrs.compactMarginPair(child) / 4;
+
+                        child.x = fch.parent.x;
+                    })
+                }
+                
                 const centerX = fch.x + fch.flexCompactDim[0] * 0.5;
                 // fch.x = fch.x + fch.flexCompactDim[0] * 0.25 - attrs.compactMarginPair(fch) / 4;
                 const offsetX = node.x - centerX;
@@ -959,7 +1036,7 @@ export class OrgChart {
                 fch.y = fch.parent.y + fch.parent.height + attrs.childrenMargin(node);
                 compactChildren.forEach((node, i) => {
                     if (node.row) {
-                        node.y = fch.y + cumSum[node.row - 1]
+                        node.y = fch.y + cumSum[node.row - 1] + (showMultipleColumns ? attrs.compactMarginBetween(node)*node.row : 0)
                     } else {
                         node.y = fch.y;
                     }
@@ -1077,27 +1154,44 @@ export class OrgChart {
                 let n, p, m;
 
                 if (attrs.compact && d.flexCompactDim && d.parent.children.length > 1) {
-                    const lateralOffset = d.width + attrs.compactMarginPair(d)/8;
-                    const verticalParentOffset = d.parent.height - attrs.compactMarginBetween(d)*1.5;
-    
-                    n = {
-                        x: attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) - lateralOffset,
-                        y: attrs.layoutBindings[attrs.layout].compactLinkMidY(d, attrs) - 25
-                    };
-    
-                    p = {
-                        x: attrs.layoutBindings[attrs.layout].linkParentX(d),
-                        y: attrs.layoutBindings[attrs.layout].linkParentY(d) - verticalParentOffset,
-                    };
-    
-                    m = {
-                        x: attrs.layoutBindings[attrs.layout].linkCompactXStart(d),
-                        y: attrs.layoutBindings[attrs.layout].linkCompactYStart(d),
-                    };
+                    if (d.parent.children.some(child => child.compactEven)) {
+                        n = {
+                            x: attrs.layoutBindings[attrs.layout].linkParentX(d),
+                            y: attrs.layoutBindings[attrs.layout].linkY(d) - 75
+                        };
+        
+                        m = {
+                            x: attrs.layoutBindings[attrs.layout].linkParentX(d),
+                            y: attrs.layoutBindings[attrs.layout].linkParentY(d)
+                        };
+        
+                        p = {
+                            x: attrs.layoutBindings[attrs.layout].linkX(d),
+                            y: attrs.layoutBindings[attrs.layout].linkY(d)
+                        };
+                    } else {
+                        const lateralOffset = d.width + attrs.compactMarginPair(d)/8;
+                        const verticalParentOffset = d.parent.height - attrs.compactMarginBetween(d)*1.5;
+        
+                        n = {
+                            x: attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) - lateralOffset,
+                            y: attrs.layoutBindings[attrs.layout].compactLinkMidY(d, attrs) - 25
+                        };
+        
+                        p = {
+                            x: attrs.layoutBindings[attrs.layout].linkParentX(d),
+                            y: attrs.layoutBindings[attrs.layout].linkParentY(d) - verticalParentOffset,
+                        };
+        
+                        m = {
+                            x: attrs.layoutBindings[attrs.layout].linkCompactXStart(d),
+                            y: attrs.layoutBindings[attrs.layout].linkCompactYStart(d),
+                        };
 
-                    if (d.depth === 5) {
-                        n.x = attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) + attrs.compactMarginPair(d)*1.3;
-                        m.x += d.width;
+                        if (d.depth === 5) {
+                            n.x = attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) + attrs.compactMarginPair(d)*1.3;
+                            m.x += d.width;
+                        }
                     }
                 } else {
                     const verticalOffsetForStartingPoint = d.parent.data.isHiddenNode ? (d.parent.height - attrs.linkYOffset) : 0
