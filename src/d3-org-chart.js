@@ -633,8 +633,9 @@ export class OrgChart {
 
         this.setLayouts({ expandNodesFirst: false });
 
-        // ****************** set max depth ************************
+        // ****************** set max depth and depth for compact mode ***
         attrs.maxDepth = this.getMaxDepth(attrs.root.children);
+        attrs.depthForCompactMode = this.setDepthForCompactMode();
 
         // ****************** expand fake nodes ************************
 
@@ -755,6 +756,20 @@ export class OrgChart {
             }
         });
         return maxDepth;
+    }
+
+    setDepthForCompactMode() {
+        const attrs = this.getChartState();
+        let depthForCompactMode;
+
+        const nodesAtSecondToLastLevel = this.getNodesByDepth(attrs.root.children, attrs.maxDepth - 1)
+            .filter(node => !node.data.isHiddenNode)
+            .length;
+
+        const correction = nodesAtSecondToLastLevel > 12 ? 1 : 0;
+        depthForCompactMode = Math.max(1, attrs.maxDepth - 1 - correction);
+
+        return depthForCompactMode;
     }
 
     expandFakeNodes(children) {
@@ -878,13 +893,34 @@ export class OrgChart {
         return foundNodes;
     }
 
+    getNodesByDepth(children, depth) {
+        if (!children) {
+            return 0;
+        }
+
+        let foundNodes = [];
+
+        children.forEach(child => {
+            if (child.depth === depth) {
+                foundNodes.push(child);
+            }
+
+            if (child.children && child.children.length) {
+                foundNodes = foundNodes.concat(this.getNodesByDepth(child.children, depth));
+            }
+            if (child._children && child._children.length) {
+                foundNodes = foundNodes.concat(this.getNodesByDepth(child._children, depth));
+            }
+        });
+
+        return foundNodes;
+    }
+
     calculateCompactFlexDimensions(root) {
         const attrs = this.getChartState();
 
-        const depthForCompactMode = attrs.maxDepth > 3 ? 3 : 2;
-
         root.eachBefore(node => {
-            if (node.depth < depthForCompactMode) {
+            if (node.depth < attrs.depthForCompactMode) {
                 return;
             }
 
@@ -895,7 +931,7 @@ export class OrgChart {
         });
 
         root.eachBefore(node => {
-            if (node.depth < depthForCompactMode) {
+            if (node.depth < attrs.depthForCompactMode) {
                 return;
             }
 
@@ -960,7 +996,7 @@ export class OrgChart {
                 compactChildren.forEach(node => {
                     node.firstCompactNode = compactChildren[0];
                     if (node.firstCompact) {
-                        if (node.depth < depthForCompactMode+2) {
+                        if (node.depth < attrs.depthForCompactMode+2) {
                             node.flexCompactDim = [
                                 columnSize + attrs.compactMarginPair(node) / 4,
                                 rowSize - attrs.compactMarginBetween(node) // useless
@@ -983,10 +1019,8 @@ export class OrgChart {
     calculateCompactFlexPositions(root) {
         const attrs = this.getChartState();
 
-        const depthForCompactMode = attrs.maxDepth > 3 ? 3 : 2;
-
         root.eachBefore(node => {
-            if (node.depth < depthForCompactMode) {
+            if (node.depth < attrs.depthForCompactMode) {
                 return;
             }
             
@@ -1043,7 +1077,7 @@ export class OrgChart {
                 });
 
                 // adjust siblings when expanding a deeper level
-                if (node.depth > depthForCompactMode) {
+                if (node.depth > attrs.depthForCompactMode) {
                     const nodeIndex = node.parent.children.findIndex(child => child.id === node.id);
 
                     node.parent.children.forEach((sibling, i) => {
@@ -1188,7 +1222,7 @@ export class OrgChart {
                             y: attrs.layoutBindings[attrs.layout].linkCompactYStart(d),
                         };
 
-                        if (d.depth === 5) {
+                        if (d.depth - attrs.depthForCompactMode === 2) {
                             n.x = attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) + attrs.compactMarginPair(d)*1.3;
                             m.x += d.width;
                         }
