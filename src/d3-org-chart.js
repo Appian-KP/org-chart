@@ -1021,6 +1021,10 @@ export class OrgChart {
 
         root.eachBefore(node => {
             if (node.depth < attrs.depthForCompactMode) {
+                const rowHeight = Math.max(...this.getNodesByDepth(attrs.root.children, node.depth).map(n => n.height));
+                if (node.height < rowHeight && node.children) {
+                    node.children.forEach(child => child.y += rowHeight-node.height);
+                }
                 return;
             }
             
@@ -1067,7 +1071,10 @@ export class OrgChart {
 
                 const rowsMapNew = this.groupBy(compactChildren, d => d.row, reducedGroup => d3.max(reducedGroup, d => attrs.layoutBindings[attrs.layout].compactDimension.sizeRow(d)));
                 const cumSum = d3.cumsum(rowsMapNew.map(d => d[1] + attrs.compactMarginBetween(d)));
-                fch.y = fch.parent.y + fch.parent.height + attrs.childrenMargin(node);
+
+                const parentRowHeigth = Math.max(...this.getNodesByDepth(attrs.root.children, fch.parent.depth).map(node => node.height));
+
+                fch.y = fch.parent.y + attrs.childrenMargin(node) + (node.depth > attrs.depthForCompactMode ? fch.parent.height : parentRowHeigth);
                 compactChildren.forEach((node, i) => {
                     if (node.row) {
                         node.y = fch.y + cumSum[node.row - 1] + (showMultipleColumns ? attrs.compactMarginBetween(node)*node.row : 0)
@@ -1204,12 +1211,12 @@ export class OrgChart {
                             y: attrs.layoutBindings[attrs.layout].linkY(d)
                         };
                     } else {
-                        const lateralOffset = d.width + attrs.compactMarginPair(d)/8;
+                        const lateralOffset = d.width;// + attrs.compactMarginPair(d)/8;
                         const verticalParentOffset = d.parent.height - attrs.compactMarginBetween(d)*1.5;
         
                         n = {
                             x: attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) - lateralOffset,
-                            y: attrs.layoutBindings[attrs.layout].compactLinkMidY(d, attrs) - 25
+                            y: attrs.layoutBindings[attrs.layout].compactLinkMidY(d, attrs) - 120
                         };
         
                         p = {
