@@ -1072,12 +1072,15 @@ export class OrgChart {
                 const rowsMapNew = this.groupBy(compactChildren, d => d.row, reducedGroup => d3.max(reducedGroup, d => attrs.layoutBindings[attrs.layout].compactDimension.sizeRow(d)));
                 const cumSum = d3.cumsum(rowsMapNew.map(d => d[1] + attrs.compactMarginBetween(d)));
 
-                const parentRowHeigth = Math.max(...this.getNodesByDepth(attrs.root.children, fch.parent.depth).map(node => node.height));
-
-                fch.y = fch.parent.y + attrs.childrenMargin(node) + (node.depth > attrs.depthForCompactMode ? fch.parent.height : parentRowHeigth);
+                const parentRowHeight = Math.max(...this.getNodesByDepth(attrs.root.children, fch.parent.depth).map(node => node.height));
+                fch.y = fch.parent.y + attrs.childrenMargin(node) + (node.depth > attrs.depthForCompactMode ? fch.parent.height : parentRowHeight);
+            
                 compactChildren.forEach((node, i) => {
                     if (node.row) {
-                        node.y = fch.y + cumSum[node.row - 1] + (showMultipleColumns ? attrs.compactMarginBetween(node)*node.row : 0)
+                        node.y = fch.y + cumSum[node.row - 1]
+                        if (showMultipleColumns) {
+                            node.y += attrs.compactMarginBetween(node)*node.row
+                        }
                     } else {
                         node.y = fch.y;
                     }
@@ -1094,7 +1097,33 @@ export class OrgChart {
                     });
                 }
             }
-        })
+        });
+
+        // adjust position of compact nodes in case of other nodes displayed in rows of 4 nodes
+        root.eachBefore(node => {
+            if (node.depth < attrs.depthForCompactMode || !node.children) {
+                return;
+            }
+
+            const firstNodeWithChildrenOnMultipleRows = this.getNodesByDepth(attrs.root.children, node.depth)
+                .filter(n => n.id !== node.id)
+                .find(n => n.children && n.children.some(child => !!child.compactEven));
+            const childrenOnMultipleRows = firstNodeWithChildrenOnMultipleRows ? firstNodeWithChildrenOnMultipleRows.children : null;
+
+            if (childrenOnMultipleRows) {
+                const compactChildren = node.children.filter(d => d.flexCompactDim);
+                compactChildren.forEach((n, i) => {
+                    if (n.row) {
+                        const childrenOnSameRow = childrenOnMultipleRows.filter(c => c.row === n.row);
+                        if (childrenOnSameRow.length) {
+                            n.y = childrenOnSameRow[0].y;
+                        } else {
+                            n.y = compactChildren[i-1].y + compactChildren[i-1].height + attrs.compactMarginBetween(n);
+                        }
+                    }
+                });
+            }
+        });
     }
 
     // This function basically redraws visible graph, based on nodes state
@@ -1229,6 +1258,10 @@ export class OrgChart {
                             y: attrs.layoutBindings[attrs.layout].linkCompactYStart(d),
                         };
 
+                        if (d.data.parentId && d.data.parentId.includes('-fake')) {
+                            p.x = n.x;
+                        }
+
                         if (d.depth - attrs.depthForCompactMode === 2) {
                             n.x = attrs.layoutBindings[attrs.layout].compactLinkMidX(d, attrs) + attrs.compactMarginPair(d)*1.3;
                             m.x += d.width;
@@ -1250,6 +1283,15 @@ export class OrgChart {
                         x: attrs.layoutBindings[attrs.layout].linkX(d),
                         y: attrs.layoutBindings[attrs.layout].linkY(d)
                     };
+
+                    if (d.id.includes('-fake')) {
+                        n.x -= d.width*3/4 - attrs.compactMarginPair(d)*7/16;
+                        m.x -= d.width*3/4 - attrs.compactMarginPair(d)*7/16;
+                            
+                        if (d.data.parentId && d.data.parentId.includes('-fake')) {
+                            p.x -= d.width*3/4 - attrs.compactMarginPair(d)*7/16;
+                        }
+                    }
                 }
 
                 return attrs.layoutBindings[attrs.layout].diagonal(n, p, m, { sy: attrs.linkYOffset });
