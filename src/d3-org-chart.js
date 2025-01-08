@@ -762,11 +762,15 @@ export class OrgChart {
         const attrs = this.getChartState();
         let depthForCompactMode;
 
+        const nodesAtLastLevel = this.getNodesByDepth(attrs.root.children, attrs.maxDepth)
+            .filter(node => !node.data.isHiddenNode)
+            .length;
+
         const nodesAtSecondToLastLevel = this.getNodesByDepth(attrs.root.children, attrs.maxDepth - 1)
             .filter(node => !node.data.isHiddenNode)
             .length;
 
-        const correction = nodesAtSecondToLastLevel > 12 ? 1 : 0;
+        const correction = nodesAtSecondToLastLevel > 12 && nodesAtLastLevel < 20 ? 1 : 0;
         depthForCompactMode = Math.max(1, attrs.maxDepth - 1 - correction);
 
         return depthForCompactMode;
@@ -945,7 +949,7 @@ export class OrgChart {
 
                 let columnSize = node.width + attrs.compactMarginPair(node)/2;
 
-                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.data.livello)
+                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.id.includes('-fake') ? compactChildren[0].data.livello-1 : node.data.livello)
                     .filter(node => !node.data.isHiddenNode)
                     .filter(node => node.children || node._children)
                     .length;
@@ -1033,7 +1037,7 @@ export class OrgChart {
                 const fch = compactChildren[0];
                 if (!fch) return;
 
-                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.data.livello)
+                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.id.includes('-fake') ? fch.data.livello-1 : node.data.livello)
                     .filter(node => !node.data.isHiddenNode)
                     .filter(node => node.children || node._children)
                     .length;
@@ -1259,7 +1263,11 @@ export class OrgChart {
                         };
 
                         if (d.data.parentId && d.data.parentId.includes('-fake')) {
-                            p.x = n.x;
+                            if (d.depth - attrs.depthForCompactMode !== 2) {
+                                p.x = n.x;
+                            } else {
+                                p.x -= d.width*3/4 - attrs.compactMarginPair(d)*7/16;
+                            }
                         }
 
                         if (d.depth - attrs.depthForCompactMode === 2) {
