@@ -770,7 +770,7 @@ export class OrgChart {
             .filter(node => !node.data.isHiddenNode)
             .length;
 
-        const correction = nodesAtSecondToLastLevel > 12 && nodesAtLastLevel < 20 ? 1 : 0;
+        const correction = nodesAtSecondToLastLevel > 12 && nodesAtLastLevel < 10 ? 1 : 0;
         depthForCompactMode = Math.max(1, attrs.maxDepth - 1 - correction);
 
         return depthForCompactMode;
@@ -954,7 +954,11 @@ export class OrgChart {
                     .filter(node => node.children || node._children)
                     .length;
 
-                const showMultipleColumns = compactChildren.length > 6 && nodesWithSameLevel < 3;
+                const showMultipleColumns =
+                    compactChildren.length > 6 &&
+                    nodesWithSameLevel < 3 &&
+                    compactChildren[0].depth === attrs.maxDepth &&
+                    node.depth === attrs.depthForCompactMode;
 
                 if (showMultipleColumns) {
                     let pushLeft = true;
@@ -1042,7 +1046,11 @@ export class OrgChart {
                     .filter(node => node.children || node._children)
                     .length;
 
-                const showMultipleColumns = compactChildren.length > 6 && nodesWithSameLevel < 3;
+                const showMultipleColumns = 
+                    compactChildren.length > 6 &&
+                    nodesWithSameLevel < 3 &&
+                    fch.depth === attrs.maxDepth &&
+                    node.depth === attrs.depthForCompactMode;
 
                 if (showMultipleColumns) {
                     compactChildren.forEach((child, i, arr) => {
