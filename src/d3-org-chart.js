@@ -770,12 +770,16 @@ export class OrgChart {
             .filter(node => !node.data.isHiddenNode)
             .length;
 
-        const correction = nodesAtSecondToLastLevel > 12 && nodesAtLastLevel < 10 ? 1 : 0;
-        depthForCompactMode = Math.max(1, attrs.maxDepth - 1 - correction);
+            // const correction = nodesAtSecondToLastLevel > 12 && nodesAtLastLevel < 10 ? 1 : 0;
+            // depthForCompactMode = Math.max(1, attrs.maxDepth - 1 - correction);
+            depthForCompactMode = Math.max(1, attrs.maxDepth - 1);
 
-        if (depthForCompactMode === 1 && nodesAtSecondToLastLevel === 1) {
-            depthForCompactMode = 2;
-        }
+            if (depthForCompactMode === 1 && nodesAtSecondToLastLevel === 1) {
+                depthForCompactMode = 2;
+            }
+            if (attrs.maxDepth === 5) {
+                depthForCompactMode = 3;
+            }
 
         return depthForCompactMode;
     }
