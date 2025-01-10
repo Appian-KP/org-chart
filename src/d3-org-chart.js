@@ -773,6 +773,10 @@ export class OrgChart {
         const correction = nodesAtSecondToLastLevel > 12 && nodesAtLastLevel < 10 ? 1 : 0;
         depthForCompactMode = Math.max(1, attrs.maxDepth - 1 - correction);
 
+        if (depthForCompactMode === 1 && nodesAtSecondToLastLevel === 1) {
+            depthForCompactMode = 2;
+        }
+
         return depthForCompactMode;
     }
 
