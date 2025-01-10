@@ -782,7 +782,7 @@ export class OrgChart {
 
     expandFakeNodes(children) {
         if (!children) {
-            return 0;
+            return;
         }
 
         children.forEach(child => {
@@ -880,7 +880,7 @@ export class OrgChart {
 
     getNodesByLevel(children, level) {
         if (!children) {
-            return 0;
+            return [];
         }
 
         let foundNodes = [];
