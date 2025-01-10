@@ -903,7 +903,7 @@ export class OrgChart {
 
     getNodesByDepth(children, depth) {
         if (!children) {
-            return 0;
+            return [];
         }
 
         let foundNodes = [];
