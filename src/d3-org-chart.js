@@ -762,24 +762,29 @@ export class OrgChart {
         const attrs = this.getChartState();
         let depthForCompactMode;
 
-        const nodesAtLastLevel = this.getNodesByDepth(attrs.root.children, attrs.maxDepth)
+        const nodesAtLastDepth = this.getNodesByDepth(attrs.root.children, attrs.maxDepth);
+        const numberOfVisibileNodesAtLastDepth = nodesAtLastDepth
             .filter(node => !node.data.isHiddenNode)
             .length;
 
-        const nodesAtSecondToLastLevel = this.getNodesByDepth(attrs.root.children, attrs.maxDepth - 1)
+        const nodesAtSecondToLastDepth = this.getNodesByDepth(attrs.root.children, attrs.maxDepth - 1);
+        const numberOfVisibileNodesAtSecondToLastDepth = nodesAtSecondToLastDepth
             .filter(node => !node.data.isHiddenNode)
             .length;
+        const presenceOfHiddenNodesAtSecondToLastDepth = nodesAtSecondToLastDepth
+            .some(node => !!node.data.isHiddenNode);
 
-            // const correction = nodesAtSecondToLastLevel > 12 && nodesAtLastLevel < 10 ? 1 : 0;
-            // depthForCompactMode = Math.max(1, attrs.maxDepth - 1 - correction);
-            depthForCompactMode = Math.max(1, attrs.maxDepth - 1);
 
-            if (depthForCompactMode === 1 && nodesAtSecondToLastLevel === 1) {
-                depthForCompactMode = 2;
-            }
-            if (attrs.maxDepth === 5) {
-                depthForCompactMode = 3;
-            }
+        const correction = numberOfVisibileNodesAtSecondToLastDepth > 12 && numberOfVisibileNodesAtLastDepth < 10 && !presenceOfHiddenNodesAtSecondToLastDepth ? 1 : 0;
+        depthForCompactMode = Math.max(1, attrs.maxDepth - 1 - correction);
+        // depthForCompactMode = Math.max(1, attrs.maxDepth - 1);
+
+        if (depthForCompactMode === 1 && numberOfVisibileNodesAtSecondToLastDepth === 1) {
+            depthForCompactMode = 2;
+        }
+        // if (attrs.maxDepth === 5) {
+        //     depthForCompactMode = 3;
+        // }
 
         return depthForCompactMode;
     }
