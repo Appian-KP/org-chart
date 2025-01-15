@@ -779,7 +779,7 @@ export class OrgChart {
         depthForCompactMode = Math.max(1, attrs.maxDepth - 1 - correction);
         // depthForCompactMode = Math.max(1, attrs.maxDepth - 1);
 
-        if (depthForCompactMode === 1 && numberOfVisibileNodesAtSecondToLastDepth === 1) {
+        if (depthForCompactMode === 1 && nodesAtSecondToLastDepth.length === 1) {
             depthForCompactMode = 2;
         }
         // if (attrs.maxDepth === 5) {
@@ -1097,7 +1097,7 @@ export class OrgChart {
                 const rowsMapNew = this.groupBy(compactChildren, d => d.row, reducedGroup => d3.max(reducedGroup, d => attrs.layoutBindings[attrs.layout].compactDimension.sizeRow(d)));
                 const cumSum = d3.cumsum(rowsMapNew.map(d => d[1] + attrs.compactMarginBetween(d)));
 
-                const parentRowHeight = Math.max(...this.getNodesByDepth(attrs.root.children, fch.parent.depth).map(node => node.height));
+                const parentRowHeight = Math.max(...this.getNodesByDepth(attrs.root.children, fch.parent.depth).filter(node => !node.data.isHiddenNode).map(node => node.height));
                 fch.y = fch.parent.y + attrs.childrenMargin(node) + (node.depth > attrs.depthForCompactMode ? fch.parent.height : parentRowHeight);
             
                 compactChildren.forEach((node, i) => {
