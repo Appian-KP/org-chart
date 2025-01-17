@@ -962,8 +962,11 @@ export class OrgChart {
 
                 let columnSize = node.width + attrs.compactMarginPair(node)/2;
 
-                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.id.includes('-fake') ? compactChildren[0].data.livello-1 : node.data.livello)
-                    .filter(node => !node.data.isHiddenNode)
+                // const nodesWithSameLevel = this.getNodesByLevel(root.children, node.id.includes('-fake') ? compactChildren[0].data.livello-1 : node.data.livello)
+                //     .filter(node => !node.data.isHiddenNode)
+                //     .filter(node => node.children || node._children)
+                //     .length;
+                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.data.livello)
                     .filter(node => node.children || node._children)
                     .length;
 
@@ -1054,8 +1057,11 @@ export class OrgChart {
                 const fch = compactChildren[0];
                 if (!fch) return;
 
-                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.id.includes('-fake') ? fch.data.livello-1 : node.data.livello)
-                    .filter(node => !node.data.isHiddenNode)
+                // const nodesWithSameLevel = this.getNodesByLevel(root.children, node.id.includes('-fake') ? fch.data.livello-1 : node.data.livello)
+                //     .filter(node => !node.data.isHiddenNode)
+                //     .filter(node => node.children || node._children)
+                //     .length;
+                const nodesWithSameLevel = this.getNodesByLevel(root.children, node.data.livello)
                     .filter(node => node.children || node._children)
                     .length;
 
@@ -1257,7 +1263,8 @@ export class OrgChart {
         
                         m = {
                             x: attrs.layoutBindings[attrs.layout].linkParentX(d),
-                            y: attrs.layoutBindings[attrs.layout].linkParentY(d)
+                            // y: attrs.layoutBindings[attrs.layout].linkParentY(d)
+                            y: d.parent.y + attrs.linkYOffset
                         };
         
                         p = {
@@ -1313,7 +1320,11 @@ export class OrgChart {
                         y: attrs.layoutBindings[attrs.layout].linkY(d)
                     };
 
-                    if (d.id.includes('-fake')) {
+                    if (
+                        d.id.includes('-fake') &&
+                        !d.children.some(child => child.compactEven) &&
+                        !d.children.some(child => child.children && child.children.some(c => c.compactEven))
+                    ) {
                         n.x -= d.width*3/4 - attrs.compactMarginPair(d)*7/16;
                         m.x -= d.width*3/4 - attrs.compactMarginPair(d)*7/16;
                             
