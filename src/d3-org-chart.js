@@ -972,7 +972,7 @@ export class OrgChart {
 
                 const showMultipleColumns =
                     compactChildren.length > 6 &&
-                    nodesWithSameLevel < 3 &&
+                    nodesWithSameLevel <= 3 &&
                     compactChildren[0].depth === attrs.maxDepth &&
                     node.depth === attrs.depthForCompactMode;
 
@@ -1067,7 +1067,7 @@ export class OrgChart {
 
                 const showMultipleColumns = 
                     compactChildren.length > 6 &&
-                    nodesWithSameLevel < 3 &&
+                    nodesWithSameLevel <= 3 &&
                     fch.depth === attrs.maxDepth &&
                     node.depth === attrs.depthForCompactMode;
 
@@ -1130,7 +1130,9 @@ export class OrgChart {
             }
         });
 
-        // adjust position of compact nodes in case of other nodes displayed in rows of 4 nodes
+        // adjust position of compact nodes in case of other nodes displayed on multiple columns (in rows of 4);
+        // this generally works pretty well also on nodes rendered before a node with children on multiple columns (in rows of 4)
+        // because we are rendering the chart twice (see setTimeout()), so following nodes have been already rendered in the previous render() call
         root.eachBefore(node => {
             if (node.depth < attrs.depthForCompactMode || !node.children) {
                 return;
@@ -1139,6 +1141,7 @@ export class OrgChart {
             const firstNodeWithChildrenOnMultipleRows = this.getNodesByDepth(attrs.root.children, node.depth)
                 .filter(n => n.id !== node.id)
                 .find(n => n.children && n.children.some(child => !!child.compactEven));
+
             const childrenOnMultipleRows = firstNodeWithChildrenOnMultipleRows ? firstNodeWithChildrenOnMultipleRows.children : null;
 
             if (childrenOnMultipleRows) {
@@ -1147,9 +1150,16 @@ export class OrgChart {
                     if (n.row) {
                         const childrenOnSameRow = childrenOnMultipleRows.filter(c => c.row === n.row);
                         if (childrenOnSameRow.length) {
-                            n.y = childrenOnSameRow[0].y;
+                            let edgeOfPreviousRow = 0;
+                            const childrenOnPreviousRow = childrenOnMultipleRows.filter(c => c.row === n.row-1);
+                            if (childrenOnPreviousRow) {
+                                edgeOfPreviousRow = childrenOnPreviousRow
+                                    .map(c => c.y+c.height)
+                                    .reduce((stored, current) => current > stored ? current : stored, 0);
+                            }
+                            n.y = Math.max(childrenOnSameRow[0].y, edgeOfPreviousRow + attrs.compactMarginBetween(n)/2);
                         } else {
-                            n.y = compactChildren[i-1].y + compactChildren[i-1].height + attrs.compactMarginBetween(n);
+                            n.y = Math.max(n.y, compactChildren[i-1].y + compactChildren[i-1].height + attrs.compactMarginBetween(n));
                         }
                     }
                 });
